@@ -43,6 +43,7 @@ npx skills add mariusz/skills -g -y --all
 | Skill | Description |
 |-------|-------------|
 | [`mariusz-git-worktrees-setup`](./mariusz-git-worktrees-setup/SKILL.md) | Bare-repo + git worktrees workflow for cloning any repository, plus auto-generated `AGENTS.md` documenting the layout. |
+| [`pixel-perfect`](./pixel-perfect/SKILL.md) | Systematic design verification — extracts specs from Figma via MCP, measures browser CSS via computer-use, outputs a structured diff table for implementation agents. |
 
 ## Adding a new skill
 
