@@ -43,7 +43,8 @@ npx skills add mariusz/skills -g -y --all
 | Skill | Description |
 |-------|-------------|
 | [`mariusz-git-worktrees-setup`](./mariusz-git-worktrees-setup/SKILL.md) | Bare-repo + git worktrees workflow for cloning any repository, plus auto-generated `AGENTS.md` documenting the layout. |
-| [`pixel-perfect`](./pixel-perfect/SKILL.md) | Systematic design verification — extracts specs from Figma via MCP, measures browser CSS via computer-use, outputs a structured diff table for implementation agents. |
+| [`pixel-perfect`](./pixel-perfect/SKILL.md) | Systematic design verification — extracts specs from Figma via MCP, measures browser CSS via computer-use, outputs a structured diff table + JSON blob for implementation agents. |
+| [`json-response`](./json-response/SKILL.md) | Serialize audit/verification findings into a structured JSON blob (`issues.json`) ready for an implementer agent loop. |
 
 ## Adding a new skill
 
