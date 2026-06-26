@@ -346,24 +346,73 @@ For any value flagged as a discrepancy:
 
 ## Phase 5: Handoff Format
 
-The final diff table is the deliverable. It should be:
+Produce **both** artifacts:
 
-1. **Self-contained** — an implementation agent can fix issues using only this table
-2. **Actionable** — every row has a CSS selector and exact values to change
-3. **Prioritized** — sorted by severity (critical → low)
-4. **Deduplicated** — systemic issues called out separately with one fix
+1. The markdown Diff Table (Phase 3 format) — human-readable reference
+2. A JSON blob — machine-readable handoff for the implementer agent loop
 
-Save to: `{project}/pixel-perfect-diff.md`
+Save markdown to: `{project}/pixel-perfect-diff.md`  
+Save JSON to: `{project}/pixel-perfect-issues.json`
+
+### JSON Schema
+
+```json
+{
+  "source_figma": "https://figma.com/...",
+  "target_url": "https://...",
+  "total": 8,
+  "issues": [
+    {
+      "id": 1,
+      "severity": "high",
+      "element": "Page title",
+      "property": "font-size",
+      "expected": "32px",
+      "actual": "28px",
+      "selector": "h1.page-title",
+      "fix_instruction": "Set font-size to 32px on h1.page-title",
+      "systemic_group": null
+    },
+    {
+      "id": 3,
+      "severity": "medium",
+      "element": "Card",
+      "property": "border-radius",
+      "expected": "12px",
+      "actual": "8px",
+      "selector": ".card",
+      "fix_instruction": "Update --radius-lg token from 8px to 12px (affects Card, Modal, Dropdown)",
+      "systemic_group": "radius-lg-mismatch"
+    }
+  ],
+  "systemic_groups": {
+    "radius-lg-mismatch": {
+      "description": "--radius-lg token is 8px, should be 12px",
+      "affected_selectors": [".card", ".modal", ".dropdown"],
+      "fix_instruction": "Change --radius-lg CSS variable to 12px in the design token file"
+    }
+  }
+}
+```
+
+**Rules for JSON output:**
+
+- `severity`: one of `critical | high | medium | low`
+- `systemic_group`: `null` if standalone; a slug string if part of a systemic pattern
+- Issues in a `systemic_group` share the same `fix_instruction` pointing to the token/variable fix
+- Sort `issues` array by severity: critical first, low last
+- `fix_instruction` must be a complete, actionable sentence an agent can execute without other context
 
 ### For the implementation agent
 
-Include this preamble in the output:
+Include this preamble in the markdown output:
 
 ```markdown
 > **Instructions for implementation agent:**
-> Each row is a CSS fix. Apply `Expected` value to the element at `Selector`.
-> Systemic issues should be fixed at the token/variable level.
-> After applying fixes, re-run this verification to confirm zero remaining diffs.
+> Use pixel-perfect-issues.json. Each issue is one CSS fix.
+> Apply `expected` value to the element at `selector`.
+> For issues with a `systemic_group`, apply the group-level fix once instead of per-element.
+> After applying all fixes, re-run this verification to confirm zero remaining diffs.
 ```
 
 ---
