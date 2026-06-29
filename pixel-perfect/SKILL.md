@@ -1,7 +1,7 @@
 ---
 name: pixel-perfect
 description: >
-  Systematic pixel-perfect design verification — extracts design specs from Figma (via MCP API + screenshots)
+  Systematic pixel-perfect design verification — extracts design specs from Figma (via REST API when FIGMA_API_KEY present, otherwise MCP + screenshots)
   and compares every CSS property against the live browser implementation using computer-use.
   Outputs a structured diff table consumable by an implementation agent.
   TRIGGER when: user mentions "pixel-perfect", "design diff", "design QA", "check against Figma",
@@ -34,7 +34,126 @@ Collect from user:
 
 ## Phase 1: Design Extraction (Figma)
 
-### Step 1A: Get structured data via Figma MCP
+**Check for `FIGMA_API_KEY` in env first — it determines which path to use.**
+
+---
+
+### Path A: Figma REST API (preferred — use when `FIGMA_API_KEY` is present)
+
+Parse the Figma URL to extract `FILE_KEY` and `NODE_ID`:
+- URL format: `figma.com/design/FILE_KEY/Name?node-id=X-Y` → node-id is `X-Y` (use as-is or replace `-` with `:` per API docs)
+
+```bash
+# Fetch the node tree for the target frame
+curl -H "X-Figma-Token: $FIGMA_API_KEY" \
+  "https://api.figma.com/v1/files/FILE_KEY/nodes?ids=NODE_ID&geometry=paths"
+```
+
+The response contains a full node tree under `.nodes[NODE_ID].document`. Traverse it recursively to extract:
+
+**Typography** (from `style` on text nodes, `type === "TEXT"`):
+- `style.fontFamily`, `style.fontPostScriptName`
+- `style.fontSize`, `style.fontWeight`
+- `style.lineHeightPx` / `style.lineHeightUnit` / `style.lineHeightPercentFontSize`
+- `style.letterSpacing` (in px), `style.textAlignHorizontal`
+- `style.textCase` → maps to `text-transform` (UPPER/LOWER/TITLE/ORIGINAL)
+- `style.textDecoration` (UNDERLINE/STRIKETHROUGH/NONE)
+
+**Colors** (from `fills` array on any node):
+- `fills[].type === "SOLID"` → `fills[].color` is `{r, g, b, a}` floats 0–1
+- Convert: `hex = '#' + [r,g,b].map(c => Math.round(c*255).toString(16).padStart(2,'0')).join('')`
+- For gradients: `fills[].type === "GRADIENT_LINEAR"` etc.
+
+**Spacing / sizing** (from layout properties):
+- `paddingLeft`, `paddingRight`, `paddingTop`, `paddingBottom`
+- `itemSpacing` → gap between children
+- `absoluteBoundingBox.width` / `.height` → element dimensions
+- `cornerRadius` / `rectangleCornerRadii` (per-corner)
+
+**Borders / strokes**:
+- `strokes[].color` + `strokeWeight` → border color + width
+- `strokeAlign` (INSIDE/OUTSIDE/CENTER)
+
+**Effects**:
+- `effects[].type === "DROP_SHADOW"` → `offset.x/y`, `radius`, `spread`, `color`
+- `effects[].type === "INNER_SHADOW"`, `"LAYER_BLUR"`, `"BACKGROUND_BLUR"`
+
+**Layout / display** (from `layoutMode`):
+- `layoutMode === "HORIZONTAL"` → `display: flex; flex-direction: row`
+- `layoutMode === "VERTICAL"` → `display: flex; flex-direction: column`
+- `primaryAxisAlignItems` → `justify-content` (MIN/CENTER/MAX/SPACE_BETWEEN)
+- `counterAxisAlignItems` → `align-items` (MIN/CENTER/MAX/BASELINE)
+
+```python
+# ponytail: minimal recursive walker — extend if deeper nesting needed
+import os, json
+from urllib.request import urlopen, Request
+
+def fetch_nodes(file_key, node_id):
+    url = f"https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}&geometry=paths"
+    req = Request(url, headers={"X-Figma-Token": os.environ["FIGMA_API_KEY"]})
+    return json.loads(urlopen(req).read())
+
+def rgba_to_hex(c):
+    return '#' + ''.join(f"{round(c[k]*255):02x}" for k in ('r','g','b'))
+
+def extract_node(node, depth=0, results=None):
+    if results is None: results = []
+    name = node.get('name', '')
+    ntype = node.get('type', '')
+    entry = {'name': name, 'type': ntype, 'depth': depth}
+
+    if ntype == 'TEXT':
+        s = node.get('style', {})
+        entry['typography'] = {
+            'fontFamily': s.get('fontFamily'),
+            'fontSize': s.get('fontSize'),
+            'fontWeight': s.get('fontWeight'),
+            'lineHeightPx': s.get('lineHeightPx'),
+            'letterSpacing': s.get('letterSpacing'),
+            'textCase': s.get('textCase'),
+            'textDecoration': s.get('textDecoration'),
+        }
+        fills = node.get('fills', [])
+        if fills and fills[0].get('type') == 'SOLID':
+            entry['color'] = rgba_to_hex(fills[0]['color'])
+
+    fills = node.get('fills', [])
+    if fills:
+        solid = next((f for f in fills if f.get('type') == 'SOLID'), None)
+        if solid: entry['backgroundColor'] = rgba_to_hex(solid['color'])
+
+    strokes = node.get('strokes', [])
+    if strokes:
+        solid = next((s for s in strokes if s.get('type') == 'SOLID'), None)
+        if solid:
+            entry['borderColor'] = rgba_to_hex(solid['color'])
+            entry['borderWidth'] = node.get('strokeWeight')
+
+    for prop in ('paddingLeft','paddingRight','paddingTop','paddingBottom',
+                 'itemSpacing','cornerRadius','rectangleCornerRadii',
+                 'layoutMode','primaryAxisAlignItems','counterAxisAlignItems'):
+        if prop in node: entry[prop] = node[prop]
+
+    box = node.get('absoluteBoundingBox')
+    if box: entry['dimensions'] = {'w': box['width'], 'h': box['height']}
+
+    effects = node.get('effects', [])
+    if effects: entry['effects'] = effects
+
+    if entry: results.append(entry)
+    for child in node.get('children', []):
+        extract_node(child, depth+1, results)
+    return results
+```
+
+Run `extract_node` on `response['nodes'][NODE_ID]['document']`, then build the Design Spec Table from the results.
+
+> **Confidence: High** — REST API returns exact authored values (pre-resolution), not computed CSS. No browser, no clicking.
+
+---
+
+### Path B: Figma MCP (fallback — use when no `FIGMA_API_KEY`)
 
 ```
 1. get_design_context(url=FIGMA_URL)
@@ -49,7 +168,7 @@ Collect from user:
 ### Step 1B: Visual verification via screenshot
 
 ```
-3. get_screenshot(url=FIGMA_URL)
+3. get_screenshot(url=FIGMA_URL)       ← always do this regardless of path
    → Visual reference for layout, alignment, relative sizing
    → Cross-check against structured data (catches auto-layout gaps that API may not surface clearly)
 ```
