@@ -208,6 +208,7 @@ Extract EVERY property for EVERY visible element. Be exhaustive:
 - [ ] text-transform
 - [ ] text-decoration
 - [ ] text-align
+- [ ] truncation / wrapping behavior (overflow ellipsis, white-space, -webkit-line-clamp)
 
 **Colors:**
 - [ ] color (text)
@@ -219,10 +220,12 @@ Extract EVERY property for EVERY visible element. Be exhaustive:
 - [ ] padding (all sides)
 - [ ] margin (all sides)
 - [ ] gap (flex/grid)
-- [ ] width / height (fixed dimensions)
+- [ ] width / height — note sizing mode: fixed px, hug-contents, or fill-container
 - [ ] min-width / min-height / max-width / max-height
+- [ ] negative space — the empty room around and between elements is part of the design; preserve it exactly
 
 **Layout:**
+- [ ] artboard & container dimensions — root frame width/height and every fixed column width / max-width; reproduce them, don't let the layout stretch past the design's size
 - [ ] display (flex/grid/block)
 - [ ] flex-direction
 - [ ] align-items
@@ -239,7 +242,13 @@ Extract EVERY property for EVERY visible element. Be exhaustive:
 - [ ] box-shadow
 - [ ] backdrop-filter
 - [ ] filter
+- [ ] mix-blend-mode
 - [ ] overflow
+
+**Assets:**
+- [ ] SVGs / icons / illustrations — export from Figma as SVG (`download_assets`) and embed the actual vector; never redraw or substitute a lookalike from an icon set unless byte-identical
+- [ ] Raster images (photos, textured art) — export the real asset; don't recreate
+- [ ] Image sizing — object-fit, aspect-ratio, focal point
 
 **Alignment & Position:**
 - [ ] position (relative/absolute/sticky)
@@ -266,6 +275,8 @@ If `get_design_context` returns insufficient data, supplement by:
 ---
 
 ## Phase 2: Browser Measurement
+
+> **Verify against the rendered build (zoomed in), not your source code.** Vendor CSS, CSS reset layers, and framework defaults can silently override what you authored.
 
 ### Step 2A: Navigate and screenshot
 
@@ -333,6 +344,8 @@ JSON.stringify([
   // ... batch 5-10 per call
 ]);
 ```
+
+**Design-system component warning:** When the implementation uses a DS/component-library element (Button, Card, Badge, etc.), its internal defaults frequently drift from the Figma spec. Don't assume it matches — measure it the same way as any other element and report diffs.
 
 **Selector strategy (prefer stable selectors):**
 1. `[data-testid="x"]` — best
@@ -540,6 +553,7 @@ Include this preamble in the markdown output:
 
 ### MUST
 
+- Treat design-system components as untrusted — their defaults drift from Figma spec; measure them like any other element
 - Extract design specs BEFORE measuring the browser — never measure first and guess the expected value
 - Design Spec Table must have ≥10 elements and ≥5 colors before proceeding
 - For every "not in design" finding → go back to Figma and verify that specific element
