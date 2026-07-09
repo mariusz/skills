@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Alert Banner — Target Build</title>
+<style>
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #F3F4F6; padding: 48px; margin: 0; }
+
+  /* Every value below renders IDENTICALLY to the design spec, but several are
+     authored in a different unit/notation than the Figma table uses on purpose. */
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    width: 420px;
+    /* no box-shadow authored -> computed "none", design also specifies no shadow */
+  }
+
+  /* width authored as 1.275rem (== 20.4px at 16px root) vs design's flat 20px -> within +-1px tolerance */
+  .alert-icon {
+    width: 1.275rem;
+    height: 20px;
+    flex-shrink: 0;
+    background: #FCA5A5;
+    border-radius: 4px;
+  }
+
+  .alert-body { display: flex; flex-direction: column; gap: 2px; }
+
+  /* font-weight authored numerically (design says "Bold"); line-height authored as
+     resolved px (design says ratio "1.4" -> 14 * 1.4 = 19.6px) */
+  .alert-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #991B1B;
+    line-height: 19.6px;
+    margin: 0;
+  }
+
+  /* line-height authored as resolved px (design says ratio "1.5" -> 14 * 1.5 = 21px);
+     color authored lowercase (design table shows uppercase hex, same value) */
+  .alert-message {
+    font-size: 14px;
+    font-weight: 400;
+    color: #7f1d1d;
+    line-height: 21px;
+    margin: 0;
+  }
+
+  .dismiss-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    margin-left: auto;
+  }
+</style>
+</head>
+<body>
+  <div class="alert" data-testid="alert">
+    <div class="alert-icon" data-testid="alert-icon"></div>
+    <div class="alert-body">
+      <p class="alert-title" data-testid="alert-title">Payment failed</p>
+      <p class="alert-message" data-testid="alert-message">We couldn't charge your card. Please update your billing details.</p>
+    </div>
+    <button class="dismiss-btn" data-testid="dismiss-btn" aria-label="Dismiss">&times;</button>
+  </div>
+</body>
+</html>
