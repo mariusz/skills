@@ -1,0 +1,83 @@
+{
+  "skill_name": "pixel-perfect",
+  "evals": [
+    {
+      "id": 1,
+      "name": "profile-card-mixed-deviations",
+      "prompt": "Audit the Profile Card component against its design spec using the pixel-perfect skill.\n\nPhase 0 inputs:\n- Design source: `design-spec.md` (provided). This stands in for a completed Figma extraction — Phase 1 is already done, so use this table directly as the Design Spec Table instead of calling live Figma MCP tools.\n- Target: `target.html` (provided). Open it directly in the browser, e.g. `file:///<absolute-path-to>/target.html`, and measure elements with getComputedStyle per Phase 2. Elements are tagged with stable `data-testid` attributes — prefer `[data-testid=\"...\"]` selectors.\n- Scope: the Profile Card component only (avatar, name, role, bio, stats, tags, and the two action buttons).\n- Known exceptions: none.\n- Also trigger and measure the Follow button's `:hover` state — the design spec includes a `Follow Button:hover` row for `background-color`.\n\nProduce the full pixel-perfect output per Phase 5: the markdown Diff Table (Phase 3 format, including a Systemic Issues section) and the JSON handoff blob described in the skill's JSON Schema. Save both artifacts to disk.",
+      "expected_output": "A markdown Diff Table plus a JSON issues file. The diff correctly identifies every real deviation between design-spec.md and target.html, correctly classifies severity per the skill's rubric, groups the shared radius drift (Profile Card, Follow Button, Message Button all ~4px too small) and the shared tag-chip drift (all 3 chips) into systemic issues, flags the missing Verified Badge as critical, and reports zero false positives on properties that already match (avatar, name font-weight/color, bio including its line-height, stat values, card background/border, tag color/border-radius, message button border/color/font-weight).",
+      "files": [
+        "evals/files/profile-card/design-spec.md",
+        "evals/files/profile-card/target.html"
+      ],
+      "expectations": [
+        "The Diff Table reports Profile Card border-radius as a discrepancy (design 20px vs actual 16px), severity medium, grouped into a systemic pattern",
+        "The Diff Table reports Profile Card padding as a discrepancy (design 24px vs actual 20px), severity high",
+        "The Diff Table reports Profile Card box-shadow as missing entirely (design has a shadow, actual has none), severity high",
+        "The Diff Table reports Name font-size as a discrepancy (design 20px vs actual 18px), severity high (heading font-size)",
+        "The Diff Table reports Name line-height as a discrepancy (design 28px vs actual 24px), severity low",
+        "The Diff Table reports the Verified Badge icon as MISSING from the DOM, severity critical",
+        "The Diff Table reports Role color as a discrepancy (design #6B7280 vs actual #9CA3AF), severity medium",
+        "The Diff Table reports Stats gap as a discrepancy (design 32px vs actual 24px), severity medium",
+        "The Diff Table reports the stat label's text-transform and/or letter-spacing as discrepancies (design uppercase/0.05em vs actual none/0) for at least the Followers stat",
+        "The Diff Table reports a tag chip background-color discrepancy (design #EEF2FF vs actual #E0E7FF) and/or padding discrepancy (design 4px 12px vs actual 4px 8px), and treats all three tag chips (Design/Product/Remote) as one systemic issue rather than three duplicate rows",
+        "The Diff Table reports Follow Button height (44px vs 40px), padding-inline (20px vs 16px), and border-radius (12px vs 8px) as discrepancies, each severity medium",
+        "The Diff Table reports Follow Button:hover background-color as a discrepancy (design #4338CA vs actual unchanged #4F46E5, since no hover rule exists)",
+        "The Diff Table reports Message Button height (44px vs 40px), padding-inline (20px vs 16px), and border-radius (12px vs 8px) as discrepancies",
+        "The Systemic Issues section groups the Profile Card, Follow Button, and Message Button border-radius deviations as one shared radius-token pattern (or clearly notes they share the same root cause)",
+        "The output does NOT report a diff for the Avatar (all properties match)",
+        "The output does NOT report a diff for Name font-weight or Name color (both match)",
+        "The output does NOT report a diff for the Bio element, including line-height (design ratio 1.5 on 14px text equals the actual computed 21px — must be treated as equivalent, not a bug)",
+        "The output does NOT report a diff for either stat's Value element (font-size, font-weight, color all match)",
+        "The output does NOT report a diff for Profile Card background-color or border (both match)",
+        "The output does NOT report a diff for tag chip color or border-radius (both match)",
+        "The output does NOT report a diff for Message Button border, background-color, color, or font-weight (all match)",
+        "No row in the Diff Table has Expected identical to Actual after normalization (case-insensitive hex, numeric weights, equivalent line-heights)",
+        "No element/property pair appears as a duplicate row",
+        "Every row has a concrete CSS selector (e.g. a data-testid attribute selector), not a placeholder or guess",
+        "A JSON file is produced matching the skill's schema: top-level `source_figma`/`target_url`-equivalent fields, `total`, an `issues` array sorted with more severe issues first, and a `systemic_groups` object whose keys are referenced by the corresponding issues' `systemic_group` field"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "exact-match-anti-hallucination",
+      "prompt": "Audit the Alert Banner component against its design spec using the pixel-perfect skill.\n\nPhase 0 inputs:\n- Design source: `design-spec.md` (provided) — stands in for a completed Figma extraction, use it directly as the Design Spec Table, skip live Figma MCP calls.\n- Target: `target.html` (provided) — open it directly in the browser (`file:///<absolute-path-to>/target.html`) and measure with getComputedStyle.\n- Scope: the Alert Banner component only.\n- Known exceptions: none.\n\nThe live build was implemented carefully and should match the design intent exactly, even though some values are authored differently between the two sources (ratios vs resolved pixels, named weights vs numeric weights, minor rem-to-px rounding, hex case). Produce the full pixel-perfect output per Phase 5, including the JSON handoff file, even if the diff table ends up empty.",
+      "expected_output": "A Diff Table reporting zero true discrepancies, and a JSON handoff file with `total: 0` and an empty `issues` array. Every one of the several near-miss values (ratio line-height vs resolved px, 'Bold' vs 700, ~0.4px rem rounding on the icon, hex case difference, unspecified box-shadow/overflow) is correctly recognized as equivalent rather than flagged as a bug.",
+      "files": [
+        "evals/files/exact-match/design-spec.md",
+        "evals/files/exact-match/target.html"
+      ],
+      "expectations": [
+        "The final Diff Table contains zero rows (no true discrepancies reported)",
+        "Alert Title font-weight is NOT reported as a diff even though the design spec says 'Bold' (word) and the browser reports '700' (number) — these are recognized as equivalent",
+        "Alert Title line-height is NOT reported as a diff even though the design spec gives a ratio ('1.4') and the browser reports a resolved pixel value ('19.6px') — 14px * 1.4 = 19.6px, recognized as equivalent",
+        "Alert Message line-height is NOT reported as a diff even though the design spec gives a ratio ('1.5') and the browser reports '21px' — 14px * 1.5 = 21px, recognized as equivalent",
+        "Alert Icon width is NOT reported as a diff even though the design spec says 20px and the browser measures 20.4px — within the ±1px tolerance",
+        "Alert Message color is NOT reported as a diff despite the design spec using uppercase hex (#7F1D1D) and the browser resolving to the same color — case-insensitive comparison applied",
+        "No row is invented for a property the design spec never mentions (e.g. box-shadow or overflow) just because the browser has a default value for it",
+        "The process explicitly reasons about or normalizes at least one of: word-vs-numeric weight, ratio-vs-px line-height, or sub-pixel rem rounding, rather than silently skipping without justification",
+        "The JSON handoff file is still produced with `total: 0` and an empty `issues` array, rather than being skipped because there were no findings"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "settings-list-systemic-token-drift",
+      "prompt": "Audit the Settings List component against its design spec using the pixel-perfect skill.\n\nPhase 0 inputs:\n- Design source: `design-spec.md` (provided) — stands in for a completed Figma extraction, use it directly as the Design Spec Table, skip live Figma MCP calls.\n- Target: `target.html` (provided) — open it directly in the browser (`file:///<absolute-path-to>/target.html`) and measure all 5 rows (Account, Notifications, Privacy, Billing, Language) with getComputedStyle.\n- Scope: the full Settings List component, including all 5 rows.\n- Known exceptions: none.\n\nProduce the full pixel-perfect output per Phase 5, including the JSON handoff file. Pay particular attention to the Phase 3/4 rules about deduplicating identical diffs shared across many elements into a single systemic issue.",
+      "expected_output": "A Diff Table that reports the shared row padding regression (design 16px 20px vs actual 12px 16px) as ONE systemic issue affecting all 5 rows — not five duplicate rows — with the JSON `systemic_groups` object listing all 5 row selectors under `affected_selectors`. No other discrepancies are reported since every other property matches.",
+      "files": [
+        "evals/files/systemic-drift/design-spec.md",
+        "evals/files/systemic-drift/target.html"
+      ],
+      "expectations": [
+        "The padding discrepancy (design '16px 20px' vs actual '12px 16px') is identified for the settings rows",
+        "The padding discrepancy is presented as a single systemic issue affecting all 5 rows (Account, Notifications, Privacy, Billing, Language) rather than as 5 separate duplicate rows in the main Diff Table",
+        "The JSON handoff's `systemic_groups` object contains an entry whose `affected_selectors` includes selectors for all 5 rows",
+        "Issues in the JSON `issues` array that belong to the padding pattern share the same `systemic_group` slug and the same `fix_instruction`",
+        "The output does NOT report a diff for the Heading (font-size, font-weight, color all match)",
+        "The output does NOT report a diff for any row's icon, label, or chevron (all match)",
+        "The output does NOT report a diff for border-bottom, display, align-items, or gap on the rows (all match)",
+        "The reported severity for the padding drift is reasonable (medium or high, consistent with 'wrong padding causing visual imbalance' or 'wrong border-radius'-tier spacing issues per the skill's severity table) and is applied consistently across the systemic group rather than varying per row"
+      ]
+    }
+  ]
+}

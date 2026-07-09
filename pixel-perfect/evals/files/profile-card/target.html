@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Profile Card — Target Build</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #F3F4F6; padding: 48px; }
+
+  /* DEVIATION: border-radius 20px -> 16px, padding 24px -> 20px, box-shadow missing */
+  .profile-card {
+    width: 360px;
+    padding: 20px;
+    border-radius: 16px;
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+  }
+
+  .header-row { display: flex; align-items: center; gap: 16px; }
+
+  /* MATCH: 64x64, fully round */
+  .avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 9999px;
+    background: #C7D2FE;
+  }
+
+  .identity { display: flex; flex-direction: column; gap: 4px; }
+
+  /* DEVIATION: font-size 20px -> 18px, line-height 28px -> 24px. MATCH: weight 700, color #111827 */
+  .name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 24px;
+  }
+
+  /* Verified badge icon: intentionally NOT rendered (missing element) */
+
+  /* DEVIATION: color #6B7280 -> #9CA3AF. MATCH: font-size 14px, weight 500 */
+  .role {
+    font-size: 14px;
+    font-weight: 500;
+    color: #9CA3AF;
+  }
+
+  /* MATCH on every property including line-height (1.5 * 14px = 21px, authored directly) */
+  .bio {
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: 400;
+    color: #374151;
+    line-height: 21px;
+  }
+
+  /* DEVIATION: gap 32px -> 24px */
+  .stats { display: flex; gap: 24px; margin-top: 16px; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+
+  /* MATCH: font-size 18px, weight 700, color #111827 */
+  .stat-value { font-size: 18px; font-weight: 700; color: #111827; }
+
+  /* DEVIATION: text-transform uppercase -> none, letter-spacing 0.05em -> 0. MATCH: font-size 12px, weight 500, color #9CA3AF */
+  .stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #9CA3AF;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .tags { display: flex; gap: 8px; margin-top: 16px; }
+
+  /* DEVIATION (systemic across all 3 chips): background #EEF2FF -> #E0E7FF, padding 4px 12px -> 4px 8px.
+     MATCH: border-radius 9999px, color #4338CA, font-size 12px, font-weight 500 */
+  .tag {
+    padding: 4px 8px;
+    border-radius: 9999px;
+    background-color: #E0E7FF;
+    color: #4338CA;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .actions { display: flex; gap: 12px; margin-top: 20px; }
+
+  /* DEVIATION (systemic with .btn-message, and radius shares -4px drift with .profile-card):
+     height 44px -> 40px, padding-inline 20px -> 16px, border-radius 12px -> 8px.
+     No :hover rule defined, so hover background stays #4F46E5 (design expects #4338CA).
+     MATCH: background #4F46E5, color #FFFFFF, font-weight 600, font-size 14px */
+  .btn-follow {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    background-color: #4F46E5;
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* DEVIATION (systemic with .btn-follow): height 44px -> 40px, padding-inline 20px -> 16px, border-radius 12px -> 8px.
+     MATCH: border 1px solid #E5E7EB, background transparent, color #111827, font-weight 600 */
+  .btn-message {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    background-color: transparent;
+    color: #111827;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="profile-card" data-testid="profile-card">
+    <div class="header-row">
+      <div class="avatar" data-testid="avatar"></div>
+      <div class="identity">
+        <div class="name" data-testid="name">Jordan Reyes</div>
+        <div class="role" data-testid="role">Senior Product Designer</div>
+      </div>
+    </div>
+    <p class="bio" data-testid="bio">Designs systems for teams who ship fast. Previously at Linear and Notion.</p>
+    <div class="stats" data-testid="stats">
+      <div class="stat" data-testid="stat-followers">
+        <div class="stat-value" data-testid="stat-value-followers">2.4k</div>
+        <div class="stat-label" data-testid="stat-label-followers">Followers</div>
+      </div>
+      <div class="stat" data-testid="stat-following">
+        <div class="stat-value" data-testid="stat-value-following">312</div>
+        <div class="stat-label" data-testid="stat-label-following">Following</div>
+      </div>
+    </div>
+    <div class="tags">
+      <span class="tag" data-testid="tag">Design</span>
+      <span class="tag" data-testid="tag">Product</span>
+      <span class="tag" data-testid="tag">Remote</span>
+    </div>
+    <div class="actions">
+      <button class="btn-follow" data-testid="btn-follow">Follow</button>
+      <button class="btn-message" data-testid="btn-message">Message</button>
+    </div>
+  </div>
+</body>
+</html>

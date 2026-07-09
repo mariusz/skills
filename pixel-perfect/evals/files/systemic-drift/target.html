@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Settings List — Target Build</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #F9FAFB; padding: 48px; }
+
+  .settings-list { width: 420px; background: #FFFFFF; }
+
+  /* MATCH on every property */
+  .heading { font-size: 18px; font-weight: 700; color: #111827; padding-bottom: 12px; }
+
+  /* SYSTEMIC DEVIATION: every row uses the same wrong spacing token.
+     Design: padding 16px 20px. Build: padding 12px 16px (one step down the scale).
+     All other row properties match. This is the ONLY issue in this fixture. */
+  .settings-row {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+
+  .row-icon { width: 20px; height: 20px; background: #D1D5DB; border-radius: 4px; }
+  .row-label { font-size: 14px; font-weight: 500; color: #111827; flex: 1; }
+  .row-chevron { width: 16px; height: 16px; color: #9CA3AF; }
+</style>
+</head>
+<body>
+  <div class="settings-list" data-testid="settings-list">
+    <h2 class="heading" data-testid="settings-heading">Settings</h2>
+    <div class="settings-row" data-testid="settings-row-account">
+      <div class="row-icon" data-testid="row-icon-account"></div>
+      <div class="row-label" data-testid="row-label-account">Account</div>
+      <div class="row-chevron" data-testid="row-chevron-account">&rsaquo;</div>
+    </div>
+    <div class="settings-row" data-testid="settings-row-notifications">
+      <div class="row-icon" data-testid="row-icon-notifications"></div>
+      <div class="row-label" data-testid="row-label-notifications">Notifications</div>
+      <div class="row-chevron" data-testid="row-chevron-notifications">&rsaquo;</div>
+    </div>
+    <div class="settings-row" data-testid="settings-row-privacy">
+      <div class="row-icon" data-testid="row-icon-privacy"></div>
+      <div class="row-label" data-testid="row-label-privacy">Privacy</div>
+      <div class="row-chevron" data-testid="row-chevron-privacy">&rsaquo;</div>
+    </div>
+    <div class="settings-row" data-testid="settings-row-billing">
+      <div class="row-icon" data-testid="row-icon-billing"></div>
+      <div class="row-label" data-testid="row-label-billing">Billing</div>
+      <div class="row-chevron" data-testid="row-chevron-billing">&rsaquo;</div>
+    </div>
+    <div class="settings-row" data-testid="settings-row-language">
+      <div class="row-icon" data-testid="row-icon-language"></div>
+      <div class="row-label" data-testid="row-label-language">Language</div>
+      <div class="row-chevron" data-testid="row-chevron-language">&rsaquo;</div>
+    </div>
+  </div>
+</body>
+</html>

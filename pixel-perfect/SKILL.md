@@ -450,3 +450,31 @@ See [EXAMPLES.md](EXAMPLES.md) for full worked examples showing:
 - Figma extraction → diff table generation
 - Handling design tokens vs hardcoded values
 - Systemic issue detection patterns
+
+---
+
+## Evals
+
+`evals/evals.json` has 3 self-contained regression cases (schema per the `skill-creator`
+skill's `evals.json` format). Each pairs a pre-extracted Design Spec Table
+(`evals/files/<case>/design-spec.md`, standing in for a completed Phase 1 Figma
+extraction) with a static `target.html` fixture that has known, deliberate deviations —
+so the eval is deterministic and needs no live Figma/network access, only a browser
+that can open a `file://` URL.
+
+- **`profile-card-mixed-deviations`** — the core case: high/medium/low/critical severity
+  classification, a missing element, a `:hover` state check, and two systemic patterns
+  (shared radius-token drift, identical drift across 3 repeated tag chips), alongside
+  several exact-match properties that must NOT be reported.
+- **`exact-match-anti-hallucination`** — a build that matches the design exactly but is
+  authored differently (ratio vs resolved line-height, named vs numeric weight, sub-pixel
+  rem rounding, hex case). The correct output is **zero** reported discrepancies — this
+  is the guardrail against inventing diffs.
+- **`settings-list-systemic-token-drift`** — one spacing token wrong across 5 repeated
+  rows, testing that the dedup rule collapses it into a single systemic issue instead of
+  5 duplicate rows.
+
+Run these with the `skill-creator` skill's eval workflow (with-skill vs. baseline
+subagents, grade against each eval's `expectations`, aggregate into `benchmark.json`).
+All numeric/color claims in `evals/files/**` were verified with `getComputedStyle`
+against real Chromium — treat any fixture edit as needing the same re-verification.
