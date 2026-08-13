@@ -44,6 +44,7 @@ npx skills add mariusz/skills -g -y --all
 |-------|-------------|
 | [`mariusz-git-worktrees-setup`](./mariusz-git-worktrees-setup/SKILL.md) | Bare-repo + git worktrees workflow for cloning any repository, plus auto-generated `AGENTS.md` documenting the layout. |
 | [`pixel-perfect`](./pixel-perfect/SKILL.md) | Systematic design verification — extracts specs from Figma via MCP, measures browser CSS via computer-use, outputs a structured diff table + JSON blob for implementation agents. |
+| [`react-code-smells-review`](./react-code-smells-review/SKILL.md) | Review React components for maintainability anti-patterns — force-updates, direct DOM manipulation, props in state, uncontrolled inputs, prop drilling, inheritance, duplicated/oversized components, and low cohesion. |
 | [`json-response`](./json-response/SKILL.md) | Serialize audit/verification findings into a structured JSON blob (`issues.json`) ready for an implementer agent loop. |
 
 ## Adding a new skill
