@@ -1,613 +1,121 @@
 ---
 name: pixel-perfect
-description: >
-  Systematic pixel-perfect design verification — extracts design specs from Figma (via REST API when FIGMA_API_KEY present, otherwise MCP + screenshots)
-  and compares every CSS property against the live browser implementation using computer-use.
-  Outputs a structured diff table consumable by an implementation agent.
-  TRIGGER when: user mentions "pixel-perfect", "design diff", "design QA", "check against Figma",
-  "verify implementation", "design verification", "CSS diff", "Figma vs browser",
-  or wants to compare a live build against a Figma design.
-  DO NOT TRIGGER when: user wants to CREATE a Figma design, wants visual regression testing (screenshot diffing),
-  wants CSS linting/optimization, or wants functional testing.
+description: Pixel-perfect design QA for a rendered page or component against a Figma frame or supplied spec. Measures visual differences and produces a verified diff and JSON handoff.
 ---
 
-# Pixel-Perfect Design Verification
+# Pixel-perfect verification
 
-Extract design specs from Figma → measure live implementation → produce a structured diff table for an implementation agent to fix.
+Compare a design with a rendered implementation at the same viewport and state. Report discrepancies that have a verified design value and a verified browser measurement. Use the user's stated scope; a small component is a complete audit when every applicable element in that component is covered.
 
-**Output:** A markdown table with columns: Element | Property | Expected | Actual | Severity | Selector
+## Phase 0: Establish the comparison
 
----
+1. Identify the design source (Figma frame or supplied spec), running target URL or local HTML fixture, scope, viewport, state, and known intentional exceptions. Use available context before asking for missing inputs.
+2. Match the design frame's dimensions to the browser viewport. Record any device scale, zoom, responsive variant, and content or data differences that affect comparison.
+3. If the design or rendered target is inaccessible, report the exact blocker and any work already verified. Continue with accessible portions only when they support a real comparison.
 
-## Phase 0: Inputs
+**Done when:** the design and rendered target refer to the same component or page, viewport, content, and state, or the remaining mismatch is explicitly recorded as a limitation.
 
-Collect from user:
+## Phase 1: Build the design spec
 
-1. **Figma URL** — with node-id pointing to the frame/page to verify (e.g. `figma.com/design/FILE_KEY/Name?node-id=X-Y`)
-2. **Target URL** — the running build to audit (localhost or deployed)
-3. **Scope** — full page or specific section? Component-level or page-level?
-4. **Known exceptions** — intentional deviations to skip
+Use a supplied, verified design-spec table directly. For Figma, prefer structured design data through an available Figma tool. A configured REST API token is another route; use the frame's file key and node ID to request its node tree. Inspect the frame visually through a screenshot or equivalent view when available.
 
-> **HARD STOP:** Must have both a Figma URL and a running target. No guessing values.
+For each visible element in scope, record its path, state, property, value and unit, and evidence source. Cover every **specified, comparable** property that matters to the appearance:
 
----
+- Text: family, size, weight, line height, letter spacing, alignment, case, decoration, wrapping.
+- Paint: text and fill colors, gradients, opacity, borders, radii, shadows, effects.
+- Geometry: frame dimensions, position, padding, spacing, sizing behavior, alignment, overflow.
+- Assets: icon or image identity, dimensions, crop, and focal position.
+- Interaction: variants or states shown in the design.
 
-## Phase 1: Design Extraction (Figma)
+Keep authored values distinct from visual inferences. Figma's layout, fills, and effects do not always map to one CSS declaration; compare the resulting geometry or appearance when that is the meaningful contract. Mark an unavailable design value **unverified** and omit a numeric diff for it. A screenshot may establish presence, alignment, or asset identity without establishing an exact CSS value.
 
-**Check for `FIGMA_API_KEY` in env first — it determines which path to use.**
+| Element path and state | Property | Design value | Evidence |
+|---|---|---|---|
+| Header > Title | font-size | 32px | Figma text style |
+| Card | padding | 24px | Figma layout |
+| Card > Badge | presence | visible | Figma screenshot |
 
----
+**Done when:** every visible element in scope is inventoried, its applicable specified properties are recorded, and uncertain values are marked unverified. Coverage follows the requested scope, including small components.
 
-### Path A: Figma REST API (preferred — use when `FIGMA_API_KEY` is present)
+## Phase 2: Measure the rendered target
 
-Parse the Figma URL to extract `FILE_KEY` and `NODE_ID`:
-- URL format: `figma.com/design/FILE_KEY/Name?node-id=X-Y` → node-id is `X-Y` (use as-is or replace `-` with `:` per API docs)
+1. Capture the target at the matched viewport and state. Compare its overall composition with the design view to locate omissions and wrong matches.
+2. Match each design element to its rendered counterpart using content, role, and position. Record a stable selector for the element; prefer an existing `data-testid`, semantic selector, or stable class. For a missing element, record a stable selector for the expected parent and identify the missing child in the element path.
+3. Read computed styles and geometry from the rendered DOM, including bounding boxes where size or position matters. Measure visible assets and text wrapping visually as needed. Batch measurements when it helps, but check that each selector matches the intended element.
+4. Trigger and measure each state represented in the design, including hover, focus, active, disabled, or open overlays. A state that cannot be reached is a coverage limitation.
 
-```bash
-# Fetch the node tree for the target frame
-curl -H "X-Figma-Token: $FIGMA_API_KEY" \
-  "https://api.figma.com/v1/files/FILE_KEY/nodes?ids=NODE_ID&geometry=paths"
-```
+Measure design-system components like any other element. Computed CSS can differ from authored CSS through inheritance, resets, and component defaults. Record the actual text or other identifying content alongside measurements to catch wrong element matches.
 
-The response contains a full node tree under `.nodes[NODE_ID].document`. Traverse it recursively to extract:
+**Done when:** each design element and specified property has a matching measurement, a confirmed missing-element finding, or an explicit coverage limitation. Retry selectors that fail before calling an element missing.
 
-**Typography** (from `style` on text nodes, `type === "TEXT"`):
-- `style.fontFamily`, `style.fontPostScriptName`
-- `style.fontSize`, `style.fontWeight`
-- `style.lineHeightPx` / `style.lineHeightUnit` / `style.lineHeightPercentFontSize`
-- `style.letterSpacing` (in px), `style.textAlignHorizontal`
-- `style.textCase` → maps to `text-transform` (UPPER/LOWER/TITLE/ORIGINAL)
-- `style.textDecoration` (UNDERLINE/STRIKETHROUGH/NONE)
+## Phase 3: Compare and classify
 
-**Colors** (from `fills` array on any node):
-- `fills[].type === "SOLID"` → `fills[].color` is `{r, g, b, a}` floats 0–1
-- Convert: `hex = '#' + [r,g,b].map(c => Math.round(c*255).toString(16).padStart(2,'0')).join('')`
-- For gradients: `fills[].type === "GRADIENT_LINEAR"` etc.
+Compare only properties supported by design evidence. Normalize equivalent representations before diffing: color notation and case, named and numeric weights, zero values, and unitless line height resolved against font size. Compare individual sides of shorthand spacing and borders. Account for opacity and alpha. Use ±1px for geometry or spacing and ±1 RGB channel for color as a default tolerance; state a different tolerance when the design or rendering context requires it. Preserve a real, visible difference even when a numeric tolerance would hide it.
 
-**Spacing / sizing** (from layout properties):
-- `paddingLeft`, `paddingRight`, `paddingTop`, `paddingBottom`
-- `itemSpacing` → gap between children
-- `absoluteBoundingBox.width` / `.height` → element dimensions
-- `cornerRadius` / `rectangleCornerRadii` (per-corner)
+Classify by impact in the audited context:
 
-**Borders / strokes**:
-- `strokes[].color` + `strokeWeight` → border color + width
-- `strokeAlign` (INSIDE/OUTSIDE/CENTER)
+| Severity | Meaning |
+|---|---|
+| critical | Missing or obscured content, broken layout, or wrong element |
+| high | Prominent typography, color, spacing, or asset mismatch |
+| medium | Clear local mismatch with limited page impact |
+| low | Subtle visual mismatch worth fixing |
 
-**Effects**:
-- `effects[].type === "DROP_SHADOW"` → `offset.x/y`, `radius`, `spread`, `color`
-- `effects[].type === "INNER_SHADOW"`, `"LAYER_BLUR"`, `"BACKGROUND_BLUR"`
+Group repeated discrepancies only after confirming a shared cause. If several elements use the same wrong token or rule, keep one table row for the pattern and list every affected selector in the systemic section and JSON group. A repeated value alone does not prove a shared token; inspect source before naming the fix. Keep separate rows when causes differ.
 
-**Layout / display** (from `layoutMode`):
-- `layoutMode === "HORIZONTAL"` → `display: flex; flex-direction: row`
-- `layoutMode === "VERTICAL"` → `display: flex; flex-direction: column`
-- `primaryAxisAlignItems` → `justify-content` (MIN/CENTER/MAX/SPACE_BETWEEN)
-- `counterAxisAlignItems` → `align-items` (MIN/CENTER/MAX/BASELINE)
+**Done when:** every candidate row has distinct expected and actual values after normalization, evidence on both sides, an impact-based severity, and a verified selector or parent selector.
 
-```python
-# ponytail: minimal recursive walker — extend if deeper nesting needed
-import os, json
-from urllib.request import urlopen, Request
+## Phase 4: Verify findings
 
-def fetch_nodes(file_key, node_id):
-    url = f"https://api.figma.com/v1/files/{file_key}/nodes?ids={node_id}&geometry=paths"
-    req = Request(url, headers={"X-Figma-Token": os.environ["FIGMA_API_KEY"]})
-    return json.loads(urlopen(req).read())
+Recheck each finding against the exact Figma node or supplied spec row and the matched browser element. Re-measure all critical and high findings. Review the two views together for missing elements, wrong variants, content differences, assets, and layout context. Remove false positives caused by equivalent values, unspecified design properties, wrong elements, or intentional exceptions. Record unresolved coverage separately from discrepancies.
 
-def rgba_to_hex(c):
-    return '#' + ''.join(f"{round(c[k]*255):02x}" for k in ('r','g','b'))
+**Done when:** each reported row survives both source and target checks, repeated rows are consolidated by confirmed cause, and the limitations list names every part of the requested scope that could not be verified.
 
-def extract_node(node, depth=0, results=None):
-    if results is None: results = []
-    name = node.get('name', '')
-    ntype = node.get('type', '')
-    entry = {'name': name, 'type': ntype, 'depth': depth}
+## Phase 5: Deliver the handoff
 
-    if ntype == 'TEXT':
-        s = node.get('style', {})
-        entry['typography'] = {
-            'fontFamily': s.get('fontFamily'),
-            'fontSize': s.get('fontSize'),
-            'fontWeight': s.get('fontWeight'),
-            'lineHeightPx': s.get('lineHeightPx'),
-            'letterSpacing': s.get('letterSpacing'),
-            'textCase': s.get('textCase'),
-            'textDecoration': s.get('textDecoration'),
-        }
-        fills = node.get('fills', [])
-        if fills and fills[0].get('type') == 'SOLID':
-            entry['color'] = rgba_to_hex(fills[0]['color'])
-
-    fills = node.get('fills', [])
-    if fills:
-        solid = next((f for f in fills if f.get('type') == 'SOLID'), None)
-        if solid: entry['backgroundColor'] = rgba_to_hex(solid['color'])
-
-    strokes = node.get('strokes', [])
-    if strokes:
-        solid = next((s for s in strokes if s.get('type') == 'SOLID'), None)
-        if solid:
-            entry['borderColor'] = rgba_to_hex(solid['color'])
-            entry['borderWidth'] = node.get('strokeWeight')
-
-    for prop in ('paddingLeft','paddingRight','paddingTop','paddingBottom',
-                 'itemSpacing','cornerRadius','rectangleCornerRadii',
-                 'layoutMode','primaryAxisAlignItems','counterAxisAlignItems'):
-        if prop in node: entry[prop] = node[prop]
-
-    box = node.get('absoluteBoundingBox')
-    if box: entry['dimensions'] = {'w': box['width'], 'h': box['height']}
-
-    effects = node.get('effects', [])
-    if effects: entry['effects'] = effects
-
-    if entry: results.append(entry)
-    for child in node.get('children', []):
-        extract_node(child, depth+1, results)
-    return results
-```
-
-Run `extract_node` on `response['nodes'][NODE_ID]['document']`, then build the Design Spec Table from the results.
-
-> **Confidence: High** — REST API returns exact authored values (pre-resolution), not computed CSS. No browser, no clicking.
-
----
-
-### Path B: Figma MCP (fallback — use when no `FIGMA_API_KEY`)
-
-```
-1. get_design_context(url=FIGMA_URL)
-   → Returns: node tree with properties (fills, typography, spacing, effects, layout)
-   → Extract ALL values into the Design Spec Table (see format below)
-
-2. get_metadata(url=FIGMA_URL)
-   → Returns: hierarchy, dimensions, positions
-   → Use for: absolute sizes, padding inference, gap values
-```
-
-### Step 1B: Visual verification via screenshot
-
-```
-3. get_screenshot(url=FIGMA_URL)       ← always do this regardless of path
-   → Visual reference for layout, alignment, relative sizing
-   → Cross-check against structured data (catches auto-layout gaps that API may not surface clearly)
-```
-
-### Step 1C: Build the Design Spec Table
-
-Extract EVERY property for EVERY visible element. Be exhaustive:
+Write `pixel-perfect-diff.md` and `pixel-perfect-issues.json` in the target project or the user-specified output directory. A zero-diff audit still produces both files with `total: 0` and an empty `issues` array. Include the source, target, viewport/state, date, intentional exceptions, coverage limitations, and total. Sort findings critical to low. Show only discrepancies in the main table.
 
 ```markdown
-| Element (path)              | Property         | Design Value        |
-|-----------------------------|------------------|---------------------|
-| Header > Title              | font-size        | 32px                |
-| Header > Title              | font-weight      | 700                 |
-| Header > Title              | line-height      | 40px                |
-| Header > Title              | letter-spacing   | -0.02em             |
-| Header > Title              | color            | #1A1A1A             |
-| Header > Subtitle           | font-size        | 16px                |
-| Card                        | padding          | 24px                |
-| Card                        | border-radius    | 12px                |
-| Card                        | background       | #FFFFFF             |
-| Card                        | box-shadow       | 0 2px 8px #0000001A |
-| Card > Items                | gap              | 16px                |
-| Button                      | height           | 40px                |
-| Button                      | padding-inline   | 16px                |
-| Button                      | border-radius    | 8px                 |
-| Button                      | font-weight      | 600                 |
+## Pixel-perfect diff
+
+| # | Element | Property | Expected | Actual | Severity | Selector |
+|---|---|---|---|---|---|---|
+| 1 | Card | padding | 24px | 20px | high | [data-testid="card"] |
+
+### Systemic issues
+
+| Pattern | Affected selectors | Confirmed cause | Fix |
+|---|---|---|---|
+
+### Coverage limitations
+
+- None.
 ```
 
-### Properties Checklist (extract ALL that apply per element)
-
-**Typography:**
-- [ ] font-family
-- [ ] font-size
-- [ ] font-weight
-- [ ] line-height
-- [ ] letter-spacing
-- [ ] text-transform
-- [ ] text-decoration
-- [ ] text-align
-- [ ] truncation / wrapping behavior (overflow ellipsis, white-space, -webkit-line-clamp)
-
-**Colors:**
-- [ ] color (text)
-- [ ] background-color / background (gradients)
-- [ ] border-color
-- [ ] opacity
-
-**Spacing:**
-- [ ] padding (all sides)
-- [ ] margin (all sides)
-- [ ] gap (flex/grid)
-- [ ] width / height — note sizing mode: fixed px, hug-contents, or fill-container
-- [ ] min-width / min-height / max-width / max-height
-- [ ] negative space — the empty room around and between elements is part of the design; preserve it exactly
-
-**Layout:**
-- [ ] artboard & container dimensions — root frame width/height and every fixed column width / max-width; reproduce them, don't let the layout stretch past the design's size
-- [ ] display (flex/grid/block)
-- [ ] flex-direction
-- [ ] align-items
-- [ ] justify-content
-- [ ] flex-wrap
-- [ ] grid-template-columns / rows
-
-**Borders & Corners:**
-- [ ] border-width
-- [ ] border-style
-- [ ] border-radius (all corners if different)
-
-**Effects:**
-- [ ] box-shadow
-- [ ] backdrop-filter
-- [ ] filter
-- [ ] mix-blend-mode
-- [ ] overflow
-
-**Assets:**
-- [ ] SVGs / icons / illustrations — export from Figma as SVG (`download_assets`) and embed the actual vector; never redraw or substitute a lookalike from an icon set unless byte-identical
-- [ ] Raster images (photos, textured art) — export the real asset; don't recreate
-- [ ] Image sizing — object-fit, aspect-ratio, focal point
-
-**Alignment & Position:**
-- [ ] position (relative/absolute/sticky)
-- [ ] top/right/bottom/left
-- [ ] z-index
-
-### Guardrail: Minimum Extraction Threshold
-
-**HARD STOP — do NOT proceed to Phase 2 until:**
-
-- [ ] Design Spec Table has **≥10 distinct elements** (not 10 rows — 10 different elements)
-- [ ] At least **5 colors** identified (text, background, border, accent, secondary)
-- [ ] At least **3 typography styles** captured (heading, body, label/caption)
-- [ ] At least **2 spacing values** documented (padding, gap)
-- [ ] At least **1 component** fully specified (all properties: radius, padding, colors, typography)
-
-If `get_design_context` returns insufficient data, supplement by:
-1. Calling `get_metadata` for dimensions/positions
-2. Taking `get_screenshot` and visually identifying elements the API missed
-3. Asking the user to confirm values you can't extract programmatically
-
-> **NEVER guess or interpolate design values.** If a value isn't extractable, flag it and ask the user.
-
----
-
-## Phase 2: Browser Measurement
-
-> **Verify against the rendered build (zoomed in), not your source code.** Vendor CSS, CSS reset layers, and framework defaults can silently override what you authored.
-
-### Step 2A: Navigate and screenshot
-
-```
-1. Navigate to target URL
-2. Take screenshot → compare visually against Figma screenshot from Phase 1
-3. Note obvious layout discrepancies before measuring
-```
-
-### Step 2B: Measure with JS (via computer-use)
-
-For each element in the Design Spec Table, measure the corresponding browser element:
-
-```javascript
-const rgbToHex = (v) => {
-  if (!v || v === 'transparent' || !v.startsWith('rgb')) return v;
-  const m = v.match(/[\d.]+/g);
-  if (!m || m.length < 3) return v;
-  const hex = '#' + m.slice(0,3).map(x => Math.round(+x).toString(16).padStart(2,'0')).join('');
-  const a = m.length >= 4 ? parseFloat(m[3]) : 1;
-  return a < 1 ? hex + ` (opacity: ${a})` : hex;
-};
-
-const measureAll = (sel) => {
-  const el = document.querySelector(sel);
-  if (!el) return { error: 'NOT FOUND', selector: sel };
-  const s = getComputedStyle(el);
-  return {
-    selector: sel,
-    text: el.textContent?.trim().slice(0, 40),
-    // Typography
-    fontFamily: s.fontFamily.split(',')[0].trim().replace(/['"]/g, ''),
-    fontSize: s.fontSize,
-    fontWeight: s.fontWeight,
-    lineHeight: s.lineHeight,
-    letterSpacing: s.letterSpacing,
-    textTransform: s.textTransform,
-    textDecoration: s.textDecoration,
-    textAlign: s.textAlign,
-    // Colors
-    color: rgbToHex(s.color),
-    backgroundColor: rgbToHex(s.backgroundColor),
-    borderColor: rgbToHex(s.borderColor),
-    opacity: s.opacity,
-    // Spacing
-    padding: `${s.paddingTop} ${s.paddingRight} ${s.paddingBottom} ${s.paddingLeft}`,
-    margin: `${s.marginTop} ${s.marginRight} ${s.marginBottom} ${s.marginLeft}`,
-    gap: s.gap,
-    width: s.width, height: s.height,
-    // Layout
-    display: s.display, flexDirection: s.flexDirection,
-    alignItems: s.alignItems, justifyContent: s.justifyContent,
-    // Borders
-    borderWidth: s.borderWidth, borderStyle: s.borderStyle,
-    borderRadius: s.borderRadius,
-    // Effects
-    boxShadow: s.boxShadow,
-    overflow: s.overflow
-  };
-};
-
-JSON.stringify([
-  measureAll('SELECTOR_1'),
-  measureAll('SELECTOR_2'),
-  // ... batch 5-10 per call
-]);
-```
-
-**Design-system component warning:** When the implementation uses a DS/component-library element (Button, Card, Badge, etc.), its internal defaults frequently drift from the Figma spec. Don't assume it matches — measure it the same way as any other element and report diffs.
-
-**Selector strategy (prefer stable selectors):**
-1. `[data-testid="x"]` — best
-2. `[role="x"]`, semantic tags (`h1`, `nav`, `button`)
-3. Stable BEM classes (`.card__header`)
-4. Structural (`.container > :nth-child(2)`)
-5. Never use hashed classes (`.css-1abc`, `.sc-xyz`)
-
-### Step 2C: Handle interactive states
-
-For hover/focus/active states referenced in the Figma design:
-```
-1. Trigger state (focus via JS, hover via computer-use)
-2. Immediately measure with getComputedStyle
-3. Record as separate row: "Button:hover | background-color | ..."
-```
-
-### Guardrail: Measurement Coverage
-
-**HARD STOP — do NOT proceed to Phase 3 until:**
-
-- [ ] Every element in the Design Spec Table has a corresponding browser measurement
-- [ ] Elements marked `NOT FOUND` have been retried with alternate selectors
-- [ ] At least **15 distinct elements** measured (if page has fewer, measure all)
-- [ ] All interactive states shown in Figma (hover, focus, active, disabled) have been triggered and measured
-- [ ] Dropdowns, modals, tooltips visible in the Figma design have been opened and measured
-
-> **If an element cannot be found in the DOM**, record it as `MISSING` with severity `critical` — do not silently skip it.
-
----
-
-## Phase 3: Diff Generation
-
-Compare Design Spec Table against Browser Measurements. Produce the **Diff Table**.
-
-### Rules
-
-1. **Only report actual differences.** If expected === actual → skip.
-2. **Normalize values before comparing:**
-   - Colors: both to lowercase hex (`#ffffff` = `#FFFFFF`)
-   - Spacing: round to nearest px (14.4px ≈ 14px is NOT a bug, 14px vs 16px IS)
-   - Weights: numeric (400 = normal, 700 = bold)
-   - line-height: if design says `1.5` and browser says `24px` on 16px text → equivalent, skip
-   - `0px` = `0` = `none` for border-radius, margin, padding
-3. **Tolerance:** ±1px for spacing, ±1 for RGB channels. Anything within tolerance = skip.
-4. **Severity classification:**
-
-| Severity | Criteria |
-|----------|----------|
-| critical | Layout broken, content hidden/clipped, wrong element entirely |
-| high     | Wrong color on primary element, wrong font-size on headings, wrong padding causing visual imbalance |
-| medium   | Wrong weight, wrong letter-spacing, wrong border-radius, secondary color off |
-| low      | 2px spacing diff, minor opacity difference, subtle shadow difference |
-
-### Output: The Diff Table
-
-```markdown
-## Pixel-Perfect Diff
-
-**Source:** [Figma URL]
-**Target:** [Target URL]
-**Date:** YYYY-MM-DD
-**Total discrepancies:** N
-
-| # | Element | Property | Expected (Figma) | Actual (Browser) | Severity | Selector |
-|---|---------|----------|------------------|------------------|----------|----------|
-| 1 | Page title | font-size | 32px | 28px | high | h1.page-title |
-| 2 | Page title | font-weight | 700 | 600 | medium | h1.page-title |
-| 3 | Card | border-radius | 12px | 8px | medium | .card |
-| 4 | Card | padding | 24px | 16px | high | .card |
-| 5 | Card | box-shadow | 0 2px 8px rgba(0,0,0,0.1) | none | high | .card |
-| 6 | Button | height | 40px | 36px | medium | .btn-primary |
-| 7 | Nav items | gap | 24px | 16px | medium | nav > ul |
-| 8 | Badge | background-color | #EEF2FF | #E5E7EB | low | .badge |
-
-### Systemic Issues
-
-| Pattern | Affected elements | Fix |
-|---------|-------------------|-----|
-| All border-radius 12→8 | Card, Modal, Dropdown | Global token `--radius-lg` is `8px`, should be `12px` |
-| Heading weights 700→600 | H1, H2, Card title | Font weight token or CSS variable |
-```
-
----
-
-## Phase 4: Verification Pass
-
-Before finalizing, verify the diff:
-
-1. **Screenshot comparison** — take side-by-side screenshots, confirm reported issues are visually apparent
-2. **No false positives** — for each "high" or "critical" item, re-measure to confirm
-3. **Systemic deduplication** — if 10 elements have the same border-radius diff, report once as systemic + list affected elements
-4. **Check for missing elements** — elements in Figma but absent from DOM (severity: critical)
-
-### False Positive Prevention (MUST follow)
-
-| # | Rule | What to do |
-|---|------|------------|
-| 1 | **Value exists in design but you missed it** | Before reporting "off-spec", go back to Figma and verify the specific element. Your extraction may be incomplete. |
-| 2 | **Equivalent values** | `line-height: 1.5` = `24px` on 16px text. `700` = `bold`. `#fff` = `#ffffff`. Do NOT report these. |
-| 3 | **Browser defaults on unspecified properties** | If Figma doesn't explicitly set a value, the browser default is not a bug. |
-| 4 | **Design intent: different roles = different styles** | Admin badge blue, member badge green is NOT inconsistency — it's by design. |
-| 5 | **Imperceptible color diff** | RGB channels each ≤3 apart → dismiss. |
-| 6 | **Computed vs authored values** | `getComputedStyle` returns resolved px even if authored in rem/em. Convert before comparing. |
-
-### Cross-Verification Loop
-
-For any value flagged as a discrepancy:
-
-```
-1. Is this value actually specified in the Figma design? → Re-check get_design_context
-2. Could this be a different variant/state? → Check Figma component variants
-3. Is the browser element the CORRECT match for the Figma element? → Verify by text content + position
-4. Still a real diff after all checks? → Keep in the table
-```
-
-> **GOLDEN RULE: Never report a diff without verifying BOTH the expected value (from Figma) and the actual value (re-measured) are correct.**
-
-### Guardrail: Diff Table Quality
-
-**HARD STOP — do NOT deliver until:**
-
-- [ ] Zero rows where Expected === Actual (after normalization)
-- [ ] Every row has a working CSS selector (not a guess)
-- [ ] No duplicate rows (same element + same property)
-- [ ] Systemic patterns extracted (3+ elements with same diff → systemic issue)
-- [ ] All `critical` and `high` items have been re-measured to confirm
-
----
-
-## Phase 5: Handoff Format
-
-Produce **both** artifacts:
-
-1. The markdown Diff Table (Phase 3 format) — human-readable reference
-2. A JSON blob — machine-readable handoff for the implementer agent loop
-
-Save markdown to: `{project}/pixel-perfect-diff.md`  
-Save JSON to: `{project}/pixel-perfect-issues.json`
-
-### JSON Schema
+Use this JSON shape. `total` counts rows in `issues`, including one row for each consolidated systemic pattern. For a missing element, `selector` identifies its existing parent and `element` identifies the absent child. An inferred fix must be labeled as a hypothesis in both artifacts; a confirmed fix names the actual rule or token.
 
 ```json
 {
-  "source_figma": "https://figma.com/...",
-  "target_url": "https://...",
-  "total": 8,
+  "source_figma": "https://figma.com/design/...",
+  "target_url": "https://example.com/page",
+  "total": 1,
   "issues": [
     {
       "id": 1,
       "severity": "high",
-      "element": "Page title",
-      "property": "font-size",
-      "expected": "32px",
-      "actual": "28px",
-      "selector": "h1.page-title",
-      "fix_instruction": "Set font-size to 32px on h1.page-title",
-      "systemic_group": null
-    },
-    {
-      "id": 3,
-      "severity": "medium",
       "element": "Card",
-      "property": "border-radius",
-      "expected": "12px",
-      "actual": "8px",
-      "selector": ".card",
-      "fix_instruction": "Update --radius-lg token from 8px to 12px (affects Card, Modal, Dropdown)",
-      "systemic_group": "radius-lg-mismatch"
+      "property": "padding",
+      "expected": "24px",
+      "actual": "20px",
+      "selector": "[data-testid=\"card\"]",
+      "fix_instruction": "Set padding to 24px for [data-testid=\"card\"].",
+      "systemic_group": null
     }
   ],
-  "systemic_groups": {
-    "radius-lg-mismatch": {
-      "description": "--radius-lg token is 8px, should be 12px",
-      "affected_selectors": [".card", ".modal", ".dropdown"],
-      "fix_instruction": "Change --radius-lg CSS variable to 12px in the design token file"
-    }
-  }
+  "systemic_groups": {}
 }
 ```
 
-**Rules for JSON output:**
+For a supplied design spec, put its path in `source_figma`; for a local fixture, put its path in `target_url`. A systemic group includes `description`, `affected_selectors`, and one `fix_instruction`; its issue references the group's slug. Validate the JSON, ensure `total` matches the issue count, and ensure every group reference resolves.
 
-- `severity`: one of `critical | high | medium | low`
-- `systemic_group`: `null` if standalone; a slug string if part of a systemic pattern
-- Issues in a `systemic_group` share the same `fix_instruction` pointing to the token/variable fix
-- Sort `issues` array by severity: critical first, low last
-- `fix_instruction` must be a complete, actionable sentence an agent can execute without other context
-
-### For the implementation agent
-
-Include this preamble in the markdown output:
-
-```markdown
-> **Instructions for implementation agent:**
-> Use pixel-perfect-issues.json. Each issue is one CSS fix.
-> Apply `expected` value to the element at `selector`.
-> For issues with a `systemic_group`, apply the group-level fix once instead of per-element.
-> After applying all fixes, re-run this verification to confirm zero remaining diffs.
-```
-
----
-
-## Critical Rules
-
-### MUST
-
-- Treat design-system components as untrusted — their defaults drift from Figma spec; measure them like any other element
-- Extract design specs BEFORE measuring the browser — never measure first and guess the expected value
-- Design Spec Table must have ≥10 elements and ≥5 colors before proceeding
-- For every "not in design" finding → go back to Figma and verify that specific element
-- Capture text content with every measurement (confirms you're measuring the right element)
-- Normalize values before comparing (px/rem, hex case, weight names vs numbers)
-- Re-measure every `critical` and `high` finding before including in final diff
-- Open every dropdown, modal, tooltip visible in the Figma design
-- Report MISSING elements as `critical` — don't silently skip
-- Include a working CSS selector for every row
-
-### NEVER
-
-- Never report a diff where Expected === Actual (after normalization)
-- Never guess or interpolate design values — if you can't extract it, ask the user
-- Never start measuring before the Design Spec Table passes the minimum threshold
-- Never flag different categories/roles having different styles as "inconsistency"
-- Never use hashed/generated class names as selectors (they break on rebuild)
-- Never skip the cross-verification loop — every diff gets verified both sides
-- Never deliver a table with duplicate rows (same element + same property)
-- Never treat browser defaults on unspecified properties as bugs
-
----
-
-## Examples
-
-See [EXAMPLES.md](EXAMPLES.md) for full worked examples showing:
-- Figma extraction → diff table generation
-- Handling design tokens vs hardcoded values
-- Systemic issue detection patterns
-
----
-
-## Evals
-
-`evals/evals.json` has 3 self-contained regression cases (schema per the `skill-creator`
-skill's `evals.json` format). Each pairs a pre-extracted Design Spec Table
-(`evals/files/<case>/design-spec.md`, standing in for a completed Phase 1 Figma
-extraction) with a static `target.html` fixture that has known, deliberate deviations —
-so the eval is deterministic and needs no live Figma/network access, only a browser
-that can open a `file://` URL.
-
-- **`profile-card-mixed-deviations`** — the core case: high/medium/low/critical severity
-  classification, a missing element, a `:hover` state check, and two systemic patterns
-  (shared radius-token drift, identical drift across 3 repeated tag chips), alongside
-  several exact-match properties that must NOT be reported.
-- **`exact-match-anti-hallucination`** — a build that matches the design exactly but is
-  authored differently (ratio vs resolved line-height, named vs numeric weight, sub-pixel
-  rem rounding, hex case). The correct output is **zero** reported discrepancies — this
-  is the guardrail against inventing diffs.
-- **`settings-list-systemic-token-drift`** — one spacing token wrong across 5 repeated
-  rows, testing that the dedup rule collapses it into a single systemic issue instead of
-  5 duplicate rows.
-
-Run these with the `skill-creator` skill's eval workflow (with-skill vs. baseline
-subagents, grade against each eval's `expectations`, aggregate into `benchmark.json`).
-All numeric/color claims in `evals/files/**` were verified with `getComputedStyle`
-against real Chromium — treat any fixture edit as needing the same re-verification.
+**Done when:** both artifacts agree, every finding is actionable and verified, and uncovered scope is explicit. See [EXAMPLES.md](EXAMPLES.md) for worked output and `evals/evals.json` for regression cases.

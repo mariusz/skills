@@ -5,13 +5,13 @@
       "id": 1,
       "name": "profile-card-mixed-deviations",
       "prompt": "Audit the Profile Card component against its design spec using the pixel-perfect skill.\n\nPhase 0 inputs:\n- Design source: `design-spec.md` (provided). This stands in for a completed Figma extraction — Phase 1 is already done, so use this table directly as the Design Spec Table instead of calling live Figma MCP tools.\n- Target: `target.html` (provided). Open it directly in the browser, e.g. `file:///<absolute-path-to>/target.html`, and measure elements with getComputedStyle per Phase 2. Elements are tagged with stable `data-testid` attributes — prefer `[data-testid=\"...\"]` selectors.\n- Scope: the Profile Card component only (avatar, name, role, bio, stats, tags, and the two action buttons).\n- Known exceptions: none.\n- Also trigger and measure the Follow button's `:hover` state — the design spec includes a `Follow Button:hover` row for `background-color`.\n\nProduce the full pixel-perfect output per Phase 5: the markdown Diff Table (Phase 3 format, including a Systemic Issues section) and the JSON handoff blob described in the skill's JSON Schema. Save both artifacts to disk.",
-      "expected_output": "A markdown Diff Table plus a JSON issues file. The diff correctly identifies every real deviation between design-spec.md and target.html, correctly classifies severity per the skill's rubric, groups the shared radius drift (Profile Card, Follow Button, Message Button all ~4px too small) and the shared tag-chip drift (all 3 chips) into systemic issues, flags the missing Verified Badge as critical, and reports zero false positives on properties that already match (avatar, name font-weight/color, bio including its line-height, stat values, card background/border, tag color/border-radius, message button border/color/font-weight).",
+      "expected_output": "A markdown Diff Table plus a JSON issues file. The diff correctly identifies every real deviation between design-spec.md and target.html, correctly classifies severity per the skill's rubric, groups the shared tag-chip drift (all 3 chips) by its confirmed .tag rule, and reports the three radius mismatches without assuming a shared token, flags the missing Verified Badge as critical, and reports zero false positives on properties that already match (avatar, name font-weight/color, bio including its line-height, stat values, card background/border, tag color/border-radius, message button border/color/font-weight).",
       "files": [
         "evals/files/profile-card/design-spec.md",
         "evals/files/profile-card/target.html"
       ],
       "expectations": [
-        "The Diff Table reports Profile Card border-radius as a discrepancy (design 20px vs actual 16px), severity medium, grouped into a systemic pattern",
+        "The Diff Table reports Profile Card border-radius as a discrepancy (design 20px vs actual 16px), severity medium, without inventing a shared token",
         "The Diff Table reports Profile Card padding as a discrepancy (design 24px vs actual 20px), severity high",
         "The Diff Table reports Profile Card box-shadow as missing entirely (design has a shadow, actual has none), severity high",
         "The Diff Table reports Name font-size as a discrepancy (design 20px vs actual 18px), severity high (heading font-size)",
@@ -24,7 +24,7 @@
         "The Diff Table reports Follow Button height (44px vs 40px), padding-inline (20px vs 16px), and border-radius (12px vs 8px) as discrepancies, each severity medium",
         "The Diff Table reports Follow Button:hover background-color as a discrepancy (design #4338CA vs actual unchanged #4F46E5, since no hover rule exists)",
         "The Diff Table reports Message Button height (44px vs 40px), padding-inline (20px vs 16px), and border-radius (12px vs 8px) as discrepancies",
-        "The Systemic Issues section groups the Profile Card, Follow Button, and Message Button border-radius deviations as one shared radius-token pattern (or clearly notes they share the same root cause)",
+        "The report names a shared radius token only if source inspection confirms one; otherwise it keeps the radius findings separate",
         "The output does NOT report a diff for the Avatar (all properties match)",
         "The output does NOT report a diff for Name font-weight or Name color (both match)",
         "The output does NOT report a diff for the Bio element, including line-height (design ratio 1.5 on 14px text equals the actual computed 21px — must be treated as equivalent, not a bug)",
@@ -33,8 +33,8 @@
         "The output does NOT report a diff for tag chip color or border-radius (both match)",
         "The output does NOT report a diff for Message Button border, background-color, color, or font-weight (all match)",
         "No row in the Diff Table has Expected identical to Actual after normalization (case-insensitive hex, numeric weights, equivalent line-heights)",
-        "No element/property pair appears as a duplicate row",
-        "Every row has a concrete CSS selector (e.g. a data-testid attribute selector), not a placeholder or guess",
+        "No element/property pair appears as a duplicate row, and repeated findings with a confirmed shared rule are consolidated",
+        "Every row has a verified CSS selector for the element, or for its existing parent when the child is missing",
         "A JSON file is produced matching the skill's schema: top-level `source_figma`/`target_url`-equivalent fields, `total`, an `issues` array sorted with more severe issues first, and a `systemic_groups` object whose keys are referenced by the corresponding issues' `systemic_group` field"
       ]
     },
