@@ -56,7 +56,8 @@
         "Alert Message color is NOT reported as a diff despite the design spec using uppercase hex (#7F1D1D) and the browser resolving to the same color — case-insensitive comparison applied",
         "No row is invented for a property the design spec never mentions (e.g. box-shadow or overflow) just because the browser has a default value for it",
         "The process explicitly reasons about or normalizes at least one of: word-vs-numeric weight, ratio-vs-px line-height, or sub-pixel rem rounding, rather than silently skipping without justification",
-        "The JSON handoff file is still produced with `total: 0` and an empty `issues` array, rather than being skipped because there were no findings"
+        "The JSON handoff file is still produced with `total: 0` and an empty `issues` array, rather than being skipped because there were no findings",
+        "The final JSON sets verified_match true only after rendered measurement covers the full requested scope; if the browser is inaccessible, it records the limitation and sets verified_match false"
       ]
     },
     {
@@ -77,6 +78,24 @@
         "The output does NOT report a diff for any row's icon, label, or chevron (all match)",
         "The output does NOT report a diff for border-bottom, display, align-items, or gap on the rows (all match)",
         "The reported severity for the padding drift is reasonable (medium or high, consistent with 'wrong padding causing visual imbalance' or 'wrong border-radius'-tier spacing issues per the skill's severity table) and is applied consistently across the systemic group rather than varying per row"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "settings-list-repair-loop",
+      "prompt": "Use the pixel-perfect skill to bring the Settings List target into line with its supplied design spec. The design source is `design-spec.md`; the rendered target is `target.html`. Work on a temporary copy of `target.html` so the fixture stays unchanged. Audit the full Settings List, including all five rows, apply verified fixes to the copy, then re-audit the same viewport and state until there are zero verified differences. Save the initial diff and the final Markdown and JSON handoff artifacts. State any coverage limitation honestly.",
+      "expected_output": "The first pass identifies the shared row-padding discrepancy. The implementation copy is changed, a subsequent full pass has zero remaining differences, and the final JSON has total 0 with no issues. A static-only comparison is reported as unverified rather than a confirmed visual match.",
+      "files": [
+        "evals/files/systemic-drift/design-spec.md",
+        "evals/files/systemic-drift/target.html"
+      ],
+      "expectations": [
+        "The initial audit reports the settings-row padding difference across all five rows.",
+        "The target copy is updated to the design padding without editing the source fixture.",
+        "A subsequent audit measures every specified element and property at the same viewport and state.",
+        "The final handoff contains total 0 and an empty issues array only after the subsequent audit.",
+        "Any inability to measure the rendered target remains explicit; the result is not called a verified match when coverage is incomplete.",
+        "The final JSON sets verified_match true only after rendered measurement covers the full requested scope; a static-only zero keeps verified_match false"
       ]
     }
   ]

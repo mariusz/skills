@@ -73,7 +73,7 @@ Recheck each finding against the exact Figma node or supplied spec row and the m
 
 ## Phase 5: Deliver the handoff
 
-Write `pixel-perfect-diff.md` and `pixel-perfect-issues.json` in the target project or the user-specified output directory. A zero-diff audit still produces both files with `total: 0` and an empty `issues` array. Include the source, target, viewport/state, date, intentional exceptions, coverage limitations, and total. Sort findings critical to low. Show only discrepancies in the main table.
+Write `pixel-perfect-diff.md` and `pixel-perfect-issues.json` in the target project or the user-specified output directory. A zero-diff audit still produces both files with `total: 0` and an empty `issues` array. Include the source, target, viewport/state, date, intentional exceptions, coverage limitations, and total. Sort findings critical to low. Show only discrepancies in the main table. Describe `total: 0` as a verified match only when the rendered target and every requested state were measured; otherwise identify the unverified scope.
 
 ```markdown
 ## Pixel-perfect diff
@@ -92,13 +92,15 @@ Write `pixel-perfect-diff.md` and `pixel-perfect-issues.json` in the target proj
 - None.
 ```
 
-Use this JSON shape. `total` counts rows in `issues`, including one row for each consolidated systemic pattern. For a missing element, `selector` identifies its existing parent and `element` identifies the absent child. An inferred fix must be labeled as a hypothesis in both artifacts; a confirmed fix names the actual rule or token.
+Use this JSON shape. `total` counts rows in `issues`, including one row for each consolidated systemic pattern. Set `verified_match` to `true` only when `total` is zero and the full rendered scope has been measured without coverage limitations. For a missing element, `selector` identifies its existing parent and `element` identifies the absent child. An inferred fix must be labeled as a hypothesis in both artifacts; a confirmed fix names the actual rule or token.
 
 ```json
 {
   "source_figma": "https://figma.com/design/...",
   "target_url": "https://example.com/page",
   "total": 1,
+  "verified_match": false,
+  "coverage_limitations": [],
   "issues": [
     {
       "id": 1,
@@ -119,3 +121,15 @@ Use this JSON shape. `total` counts rows in `issues`, including one row for each
 For a supplied design spec, put its path in `source_figma`; for a local fixture, put its path in `target_url`. A systemic group includes `description`, `affected_selectors`, and one `fix_instruction`; its issue references the group's slug. Validate the JSON, ensure `total` matches the issue count, and ensure every group reference resolves.
 
 **Done when:** both artifacts agree, every finding is actionable and verified, and uncovered scope is explicit. See [EXAMPLES.md](EXAMPLES.md) for worked output and `evals/evals.json` for regression cases.
+
+## Repair loop when fixes are in scope
+
+When the user asks to bring the implementation in line with the design, or an implementation agent consumes the handoff, use the verified diff as a worklist:
+
+1. Apply the confirmed fixes to the implementation. Check affected components before changing a shared token or rule.
+2. Rebuild or reload the target at the same viewport, content, and states. Re-measure the full requested scope using Phases 2–4; a changed component can introduce new differences elsewhere.
+3. Update both artifacts with the current findings and repeat the fix and verification pass until the measured discrepancy count is zero.
+
+Stop with the remaining verified differences and the exact blocker if a fix is outside the authorized scope, the target cannot be measured, or another pass makes no progress. A zero count with coverage limitations is an incomplete audit, not a verified match. For an audit-only request, include these loop instructions in the handoff without editing the implementation.
+
+**Done when:** the full requested scope has zero verified differences and no coverage limitations, or the handoff names every remaining difference and the reason the loop stopped.
