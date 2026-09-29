@@ -11,7 +11,7 @@ These examples show the output decisions that need care. They are illustrative; 
 | color | #FFFFFF | rgb(255, 255, 255) | Equivalent |
 | width | 20px | 20.4px | Within default tolerance |
 
-If these are the only differences, deliver an empty diff table and JSON with `"total": 0`, `"issues": []`, and `"systemic_groups": {}`.
+If rendered measurements confirm these are the only differences, deliver an empty diff table and JSON with `"total": 0`, `"verified_match": true`, `"coverage_limitations": []`, `"issues": []`, and `"systemic_groups": {}`. If only source inspection is available, set `verified_match` to `false` and name the browser coverage limit.
 
 ## A missing element
 
@@ -40,6 +40,8 @@ Five settings rows all have `12px 16px` padding where the design specifies `16px
   "source_figma": "design-spec.md",
   "target_url": "target.html",
   "total": 1,
+  "verified_match": false,
+  "coverage_limitations": [],
   "issues": [
     {
       "id": 1,
