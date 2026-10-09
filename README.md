@@ -46,6 +46,7 @@ npx skills add mariusz/skills -g -y --all
 | [`pixel-perfect`](./pixel-perfect/SKILL.md) | Audits a rendered page or component against Figma or a supplied design spec, then writes a verified diff table and JSON handoff. |
 | [`react-code-smells-review`](./react-code-smells-review/SKILL.md) | Review React components for maintainability anti-patterns — force-updates, direct DOM manipulation, props in state, uncontrolled inputs, prop drilling, inheritance, duplicated/oversized components, and low cohesion. |
 | [`json-response`](./json-response/SKILL.md) | Serialize audit/verification findings into a structured JSON blob (`issues.json`) ready for an implementer agent loop. |
+| [`excellent-pr`](./excellent-pr/SKILL.md) | Write or update a PR body: ticket, background, user impact, evidence, reviewer-question notes. UI changes get before/after screenshots or video. |
 
 ## Adding a new skill
 
